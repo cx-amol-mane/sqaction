@@ -69,6 +69,7 @@ jobs:
       - name: Install Plugin
         run: |
           podman cp com.checkmarx.sonar.cxplugin-2024.3.3.jar sonar-${{ matrix.sonarqube-version }}:/opt/sonarqube/extensions/plugins/
+          podman exec sonar-${{ matrix.sonarqube-version }} ls -l /opt/sonarqube/extensions/plugins/
           podman restart sonar-${{ matrix.sonarqube-version }}
 
       - name: Verify Plugin Installation
