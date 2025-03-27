@@ -2,14 +2,48 @@ name: Hello World Workflow
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
+
+env:
+  SONAR_USER_HOME: ${{ github.workspace }}/.sonar
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
   hello-world:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v3
-      
-    - name: Run Hello World
-      run: echo "Hello World! This workflow was triggered on $(date)"
+      - uses: actions/checkout@v3
+
+      - name: Run Hello World
+        run: echo "Hello World! This workflow was triggered on $(date)"
+
+  test-matrix:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        sonarqube-version: ["10.1", "10.8"]
+
+    steps:
+      - name: Install Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+
+      - name: Start SonarQube ${{ matrix.sonarqube-version }}
+        run: |
+          podman run -d --name sonar-${{ matrix.sonarqube-version }} \
+            -p 9000:9000 \
+            -v sonarqube_data:/opt/sonarqube/data \
+            docker.io/sonarqube:${{ matrix.sonarqube-version }}-community
+
+          # Wait for startup
+          until curl -sSf http://localhost:9000/api/system/status | grep -q "UP"; do sleep 10; done
+
+      - name: Status
+        run: curl -sSf http://localhost:9000/api/system/status
+
+      - name: Shutdown
+        run: |
+          podman stop sonar-${{ matrix.sonarqube-version }}
+          podman rm -v sonar-${{ matrix.sonarqube-version }}
