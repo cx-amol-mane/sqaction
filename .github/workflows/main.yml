@@ -90,12 +90,12 @@ jobs:
       - name: Verify Plugin Installation
         run: |
           echo "Waiting for SonarQube to restart after plugin installation..."
-          for i in {1..15}; do
+          for i in {1..10}; do
             if curl -sSf -u admin:admin http://localhost:9000/api/system/status | grep -q "UP"; then
               echo "SonarQube is up after plugin installation!"
               break
             fi
-            echo "Waiting for SonarQube to start... ($i/15)"
+            echo "Waiting for SonarQube to start... ($i/10)"
             sleep 10
           done
 
@@ -112,6 +112,7 @@ jobs:
           curl -sSf -u admin:admin http://localhost:9000/api/plugins/installed | jq '.plugins[] | select(.key == "checkmarx") | {key, name, version, filename}'
 
       - name: Shutdown
+        if: always()
         run: |
           podman stop sonar-${{ matrix.sonarqube-version }}
           podman rm -v sonar-${{ matrix.sonarqube-version }}
