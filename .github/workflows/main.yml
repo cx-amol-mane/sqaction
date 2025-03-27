@@ -90,11 +90,11 @@ jobs:
 
           # Check logs for plugin loading errors
           echo "Checking SonarQube logs for plugin loading..."
-          podman logs sonar-${{ matrix.sonarqube-version }} | grep -i "plugin"
+          podman logs sonar-${{ matrix.sonarqube-version }} | grep -i "[CHECKMARX]"
 
           # Try to access the plugin's endpoints (if any)
           echo "Checking plugin endpoints..."
-          curl -sSf -u admin:admin http://localhost:9000/api/checkmarx/settings | grep -q "error" && echo "Plugin endpoint accessible" || echo "Plugin endpoint not accessible"
+          curl -sSf -u admin:admin http://localhost:9000/api/plugins/installed | jq '.plugins[] | select(.key == "checkmarx") | {key, name, version, filename}'
 
       - name: Shutdown
         run: |
