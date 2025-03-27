@@ -8,9 +8,23 @@ jobs:
   SonarQube-version:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         sonarqube-version:
-          ["10.1.0", "10.2.0", "10.3.0", "10.4.0", "10.5.0", "10.6.0", "10.7.0"]
+          [
+            "8.9",
+            "9.6",
+            "9.7",
+            "9.8",
+            "10.0.0",
+            10.1.0",
+            "10.2.0",
+            "10.3.0",
+            "10.4.0",
+            "10.5.0",
+            "10.6.0",
+            "10.7.0",
+          ]
 
     steps:
       - uses: actions/checkout@v3
