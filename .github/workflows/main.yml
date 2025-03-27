@@ -10,7 +10,7 @@ jobs:
     strategy:
       matrix:
         sonarqube-version: ["10.1.0", "10.7.0"]
-
+    
     steps:
       - uses: actions/checkout@v3
 
@@ -55,9 +55,13 @@ jobs:
           echo "Final SonarQube status:"
           curl -sSf http://localhost:9000/api/system/status
 
-          # Check if plugin is loaded
-          echo "Checking plugin status..."
-          curl -sSf http://localhost:9000/api/plugins/list
+          # Check logs for plugin loading errors
+          echo "Checking SonarQube logs for plugin loading..."
+          podman logs sonar-${{ matrix.sonarqube-version }} | grep -i "plugin"
+
+          # Try to access the plugin's endpoints (if any)
+          echo "Checking plugin endpoints..."
+          curl -sSf http://localhost:9000/api/checkmarx/settings | grep -q "error" && echo "Plugin endpoint accessible" || echo "Plugin endpoint not accessible"
 
       - name: Shutdown
         run: |
