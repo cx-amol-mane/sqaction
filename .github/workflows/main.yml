@@ -10,7 +10,7 @@ jobs:
     strategy:
       matrix:
         sonarqube-version: ["10.1.0", "10.7.0"]
-    
+
     steps:
       - uses: actions/checkout@v3
 
@@ -25,14 +25,46 @@ jobs:
             -p 9000:9000 \
             docker.io/sonarqube:${{ matrix.sonarqube-version }}-community
 
-          # Wait for initial startup
-          echo "Waiting for SonarQube initial startup..."
-          until curl -sSf http://localhost:9000/api/system/status | grep -q "UP"; do sleep 10; done
+          # Wait for initial startup with more robust checks
+          echo "Waiting for SonarQube to start..."
+          for i in {1..15}; do
+            echo "Attempt $i/15"
+            
+            # Check if container is running
+            podman ps -a | grep -q sonar-${{ matrix.sonarqube-version }} && echo "Container is running" || echo "Container not found"
+            
+            # Check if port is listening
+            if netstat -tlnp | grep -q ':9000'; then
+              echo "Port 9000 is listening"
+              
+              # Try to connect to SonarQube
+              if curl -sSf -u admin:admin http://localhost:9000/api/system/status | grep -q "UP"; then
+                echo "SonarQube is up and running!"
+                break
+              else
+                echo "SonarQube not ready yet"
+              fi
+            else
+              echo "Port 9000 not listening yet"
+            fi
+            
+            sleep 10
+          done
+
+          # Final check
+          if ! curl -sSf -u admin:admin http://localhost:9000/api/system/status | grep -q "UP"; then
+            echo "SonarQube failed to start properly"
+            echo "Checking logs for errors..."
+            podman logs sonar-${{ matrix.sonarqube-version }}
+            exit 1
+          fi
+
+          echo "SonarQube is fully started and ready"
 
       - name: Status Before Plugin
         run: |
           echo "SonarQube status before plugin installation:"
-          curl -sSf http://localhost:9000/api/system/status
+          curl -sSf -u admin:admin http://localhost:9000/api/system/status
 
       - name: Install Plugin
         run: |
@@ -42,18 +74,18 @@ jobs:
       - name: Verify Plugin Installation
         run: |
           echo "Waiting for SonarQube to restart after plugin installation..."
-          for i in {1..30}; do
-            if curl -sSf http://localhost:9000/api/system/status | grep -q "UP"; then
+          for i in {1..15}; do
+            if curl -sSf -u admin:admin http://localhost:9000/api/system/status | grep -q "UP"; then
               echo "SonarQube is up after plugin installation!"
               break
             fi
-            echo "Waiting for SonarQube to start... ($i/30)"
+            echo "Waiting for SonarQube to start... ($i/15)"
             sleep 10
           done
 
           # Check final status
           echo "Final SonarQube status:"
-          curl -sSf http://localhost:9000/api/system/status
+          curl -sSf -u admin:admin http://localhost:9000/api/system/status
 
           # Check logs for plugin loading errors
           echo "Checking SonarQube logs for plugin loading..."
@@ -61,7 +93,7 @@ jobs:
 
           # Try to access the plugin's endpoints (if any)
           echo "Checking plugin endpoints..."
-          curl -sSf http://localhost:9000/api/checkmarx/settings | grep -q "error" && echo "Plugin endpoint accessible" || echo "Plugin endpoint not accessible"
+          curl -sSf -u admin:admin http://localhost:9000/api/checkmarx/settings | grep -q "error" && echo "Plugin endpoint accessible" || echo "Plugin endpoint not accessible"
 
       - name: Shutdown
         run: |
