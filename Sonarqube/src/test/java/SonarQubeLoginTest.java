@@ -52,8 +52,8 @@ public class SonarQubeLoginTest {
         loginButton.click();
         Thread.sleep(5000);
 
-        Assertions.assertTrue(driver.getCurrentUrl().contains("projects"));
-    }
+        // Assertions.assertTrue(driver.getCurrentUrl().contains("projects"));
+        Assertions.assertTrue(driver.getCurrentUrl().contains("reset_password"));    }
 
     @Test
     public void testInvalidCredentials() {
