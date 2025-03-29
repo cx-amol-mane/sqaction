@@ -34,6 +34,17 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y podman
 
+      - name: Set up Chrome
+        uses: seleniumhq/github-action@master
+        with:
+          browsers: Chrome
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
       - name: Start SonarQube ${{ matrix.sonarqube-version }}
         run: |
           podman run -d --name sonar-${{ matrix.sonarqube-version }} \
@@ -110,6 +121,11 @@ jobs:
           # Try to access the plugin's endpoints (if any)
           echo "Checking plugin endpoints..."
           curl -sSf -u admin:admin http://localhost:9000/api/plugins/installed | jq '.plugins[] | select(.key == "checkmarx") | {key, name, version, filename}'
+
+      - name: Run Maven tests
+        working-directory: Sonarqube
+        run: |
+          mvn clean test
 
       - name: Shutdown
         if: always()
