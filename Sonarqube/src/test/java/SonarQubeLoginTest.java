@@ -14,7 +14,7 @@ public class SonarQubeLoginTest {
     private WebDriver driver;
     private static final String BASE_URL = "http://localhost:9000/";
     private static final String USERNAME = "admin";
-    private static final String PASSWORD = "admin123";
+    private static final String PASSWORD = "admin";
 
     @BeforeEach
     public void setup() {
