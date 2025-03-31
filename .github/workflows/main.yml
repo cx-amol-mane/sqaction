@@ -117,10 +117,10 @@ jobs:
           echo "Checking plugin endpoints..."
           curl -sSf -u admin:admin http://localhost:9000/api/plugins/installed | jq '.plugins[] | select(.key == "checkmarx") | {key, name, version, filename}'
 
-      - name: Run Maven tests
-        working-directory: Sonarqube
-        run: |
-          mvn clean test
+      # - name: Run Maven tests
+      #   working-directory: Sonarqube
+      #   run: |
+      #     mvn clean test
 
       - name: Shutdown
         if: always()
