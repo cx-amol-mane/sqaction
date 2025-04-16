@@ -29,101 +29,30 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install Podman
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y podman
-
       - name: Set up Java
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Start SonarQube ${{ matrix.sonarqube-version }}
-        run: |
-          podman run -d --name sonar-${{ matrix.sonarqube-version }} \
-            -p 9000:9000 \
-            docker.io/sonarqube:${{ matrix.sonarqube-version }}-community
+      - name: Setup SonarQube
+        uses: ./.github/actions/setup-sonarqube
+        with:
+          sonarqube-version: ${{ matrix.sonarqube-version }}
 
-          # Wait for initial startup with more robust checks
-          echo "Waiting for SonarQube to start..."
-          for i in {1..15}; do
-            echo "Attempt $i/15"
-            
-            # Check if container is running
-            podman ps -a | grep -q sonar-${{ matrix.sonarqube-version }} && echo "Container is running" || echo "Container not found"
-            
-            # Check if port is listening
-            if netstat -tlnp | grep -q ':9000'; then
-              echo "Port 9000 is listening"
-              
-              # Try to connect to SonarQube
-              if curl -sSf -u admin:admin http://localhost:9000/api/system/status | grep -q "UP"; then
-                echo "SonarQube is up and running!"
-                break
-              else
-                echo "SonarQube not ready yet"
-              fi
-            else
-              echo "Port 9000 not listening yet"
-            fi
-            
-            sleep 10
-          done
-
-          # Final check
-          if ! curl -sSf -u admin:admin http://localhost:9000/api/system/status | grep -q "UP"; then
-            echo "SonarQube failed to start properly"
-            echo "Checking logs for errors..."
-            podman logs sonar-${{ matrix.sonarqube-version }}
-            exit 1
-          fi
-
-          echo "SonarQube is fully started and ready"
-
-      - name: Status Before Plugin
-        run: |
-          echo "SonarQube status before plugin installation:"
-          curl -sSf -u admin:admin http://localhost:9000/api/system/status
-
-      - name: Install Plugin
-        run: |
-          podman cp com.checkmarx.sonar.cxplugin-2024.3.3.jar sonar-${{ matrix.sonarqube-version }}:/opt/sonarqube/extensions/plugins/
-          podman exec sonar-${{ matrix.sonarqube-version }} ls -l /opt/sonarqube/extensions/plugins/
-          podman restart sonar-${{ matrix.sonarqube-version }}
-
-      - name: Verify Plugin Installation
-        run: |
-          echo "Waiting for SonarQube to restart after plugin installation..."
-          for i in {1..10}; do
-            if curl -sSf -u admin:admin http://localhost:9000/api/system/status | grep -q "UP"; then
-              echo "SonarQube is up after plugin installation!"
-              break
-            fi
-            echo "Waiting for SonarQube to start... ($i/10)"
-            sleep 10
-          done
-
-          # Check final status
-          echo "Final SonarQube status:"
-          curl -sSf -u admin:admin http://localhost:9000/api/system/status
-
-          # Check logs for plugin loading errors
-          echo "Checking SonarQube logs for plugin loading..."
-          podman logs sonar-${{ matrix.sonarqube-version }} | grep -i "[CHECKMARX]"
-
-          # Try to access the plugin's endpoints (if any)
-          echo "Checking plugin endpoints..."
-          curl -sSf -u admin:admin http://localhost:9000/api/plugins/installed | jq '.plugins[] | select(.key == "checkmarx") | {key, name, version, filename}'
+      - name: Install and verify plugin
+        uses: ./.github/actions/install-plugin
+        with:
+          sonarqube-version: ${{ matrix.sonarqube-version }}
+          plugin-path: com.checkmarx.sonar.cxplugin-2024.3.3.jar
 
       # - name: Run Maven tests
       #   working-directory: Sonarqube
       #   run: |
       #     mvn clean test
 
-      - name: Shutdown
+      - name: Cleanup
         if: always()
-        run: |
-          podman stop sonar-${{ matrix.sonarqube-version }}
-          podman rm -v sonar-${{ matrix.sonarqube-version }}
+        uses: ./.github/actions/cleanup-sonarqube
+        with:
+          sonarqube-version: ${{ matrix.sonarqube-version }}

@@ -1,0 +1,43 @@
+name: 'Install SonarQube Plugin'
+description: 'Installs a plugin to SonarQube and verifies installation'
+inputs:
+  sonarqube-version:
+    description: 'SonarQube version'
+    required: true
+  plugin-path:
+    description: 'Path to the plugin JAR file'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Plugin
+      shell: bash
+      run: |
+        podman cp ${{ inputs.plugin-path }} sonar-${{ inputs.sonarqube-version }}:/opt/sonarqube/extensions/plugins/
+        podman exec sonar-${{ inputs.sonarqube-version }} ls -l /opt/sonarqube/extensions/plugins/
+        podman restart sonar-${{ inputs.sonarqube-version }}
+
+    - name: Verify Plugin Installation
+      shell: bash
+      run: |
+        echo "Waiting for SonarQube to restart after plugin installation..."
+        for i in {1..10}; do
+          if curl -sSf -u admin:admin http://localhost:9000/api/system/status | grep -q "UP"; then
+            echo "SonarQube is up after plugin installation!"
+            break
+          fi
+          echo "Waiting for SonarQube to start... ($i/10)"
+          sleep 10
+        done
+
+        # Check final status
+        echo "Final SonarQube status:"
+        curl -sSf -u admin:admin http://localhost:9000/api/system/status
+
+        # Check logs for plugin loading errors
+        echo "Checking SonarQube logs for plugin loading..."
+        podman logs sonar-${{ inputs.sonarqube-version }} | grep -i "[CHECKMARX]"
+
+        # Try to access the plugin's endpoints (if any)
+        echo "Checking plugin endpoints..."
+        curl -sSf -u admin:admin http://localhost:9000/api/plugins/installed | jq '.plugins[] | select(.key == "checkmarx") | {key, name, version, filename}'

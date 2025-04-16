@@ -1,0 +1,14 @@
+name: 'Cleanup SonarQube'
+description: 'Stops and removes SonarQube container'
+inputs:
+  sonarqube-version:
+    description: 'SonarQube version to cleanup'
+    required: true
+runs:
+  using: 'composite'
+  steps:
+    - name: Shutdown Container
+      shell: bash
+      run: |
+        podman stop sonar-${{ inputs.sonarqube-version }}
+        podman rm -v sonar-${{ inputs.sonarqube-version }}
