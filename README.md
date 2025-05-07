@@ -147,3 +147,4 @@ The repository includes Selenium-based test cases to verify the functionality of
 
 Implement additional test cases to cover all plugin functionality
 Add performance benchmarks for the plugin across different SonarQube versions
+
